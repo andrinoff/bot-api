@@ -68,9 +68,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// --- 7. Get the Image File from the Form ---
 	file, handler, err := r.FormFile("image")
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ResponsePayload{Message: "Invalid image file in form.", Success: false})
-		return
+		
 	}
 	defer file.Close()
 
