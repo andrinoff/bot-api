@@ -45,3 +45,18 @@ func Send(message string, img_path string) {
 	discord.Close()
 
 }
+
+func SendNoImage(message string) {
+	fmt.Println("Discord sending...")
+	discord, err := discordgo.New("Bot " + BotToken)
+	checkNilErr(err)
+	discord.Open()
+	fmt.Println(message)
+	_, err = discord.ChannelMessageSend("1383195767623127111", message)
+	if err != nil {
+		fmt.Println("Error sending message:", err)
+		return
+	}	
+	fmt.Println("Message sent")
+	discord.Close()
+}
