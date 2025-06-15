@@ -31,6 +31,18 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// --- 1. Set Headers ---
 	// Set the content type to application/json for all responses.
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
+
+
+	// --- 2. Handle Preflight OPTIONS Request ---
+	// Browsers send an OPTIONS request first to check if the server allows the actual request.
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 
 	// --- 2. Handle HTTP Method ---
 	// We only want to allow POST requests to this endpoint.
