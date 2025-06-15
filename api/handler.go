@@ -1,19 +1,14 @@
 package handler
 
 import (
-	"encoding/json"
-	"net/http"
-	"os"
-
 	discord_bot "bot-api/discord"
 	telegram_bot "bot-api/telegram"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
 )
-
-// RequestPayload defines the structure of the JSON body we expect from the frontend.
-type RequestPayload struct {
-	Password string `json:"password"`
-	Content  string `json:"content"`
-}
 
 // ResponsePayload defines the structure for our JSON responses.
 type ResponsePayload struct {
@@ -21,67 +16,76 @@ type ResponsePayload struct {
 	Success bool   `json:"success"`
 }
 
-// processContent is a placeholder function that gets called if the password is correct.
-// In a real application, this is where you would put your logic to handle the text,
 
+func processImage(fileBytes []byte, filename string, message string) {
+	fmt.Printf("Processing image: %s, Size: %d bytes\n", filename, len(fileBytes))
+	os.WriteFile("/tmp/"+filename, fileBytes, 0644)
+	telegram_bot.Send(message, "/tmp/"+filename)
+	discord_bot.Send(message, "/tmp/"+filename)
+}
 
-// Handler is the main entry point for the Vercel serverless function.
-// It handles the HTTP request, checks the password, and processes the content.
 func Handler(w http.ResponseWriter, r *http.Request) {
-	// --- 1. Set Headers ---
-	// Set the content type to application/json for all responses.
-	w.Header().Set("Content-Type", "application/json")
+	// --- 1. Set CORS Headers ---
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("Content-Type", "application/json")
 
-
 	// --- 2. Handle Preflight OPTIONS Request ---
-	// Browsers send an OPTIONS request first to check if the server allows the actual request.
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	// --- 2. Handle HTTP Method ---
-	// We only want to allow POST requests to this endpoint.
+	// --- 3. Handle HTTP Method ---
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ResponsePayload{Message: "Method Not Allowed. Please use POST.", Success: false})
 		return
 	}
 
-	// --- 3. Decode Incoming JSON ---
-	var payload RequestPayload
-	err := json.NewDecoder(r.Body).Decode(&payload)
+	// --- 4. Parse Multipart Form ---
+	// We set a max memory limit for the form parts. 10MB in this case.
+	// Larger files will be temporarily stored on disk.
+	err := r.ParseMultipartForm(10 << 20) // 10 MB
 	if err != nil {
-		// If there's an error decoding the JSON, send a bad request response.
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ResponsePayload{Message: "Invalid request body.", Success: false})
+		json.NewEncoder(w).Encode(ResponsePayload{Message: "Could not parse multipart form.", Success: false})
 		return
 	}
 
-	// --- 4. Get Password from Environment Variables ---
-
+	// --- 5. Get Password from Form Value ---
+	password := r.FormValue("password")
 	correctPassword := os.Getenv("BACKEND_PASSWORD")
 
-	// --- 5. Compare Passwords ---
-	if payload.Password != correctPassword {
-		// If the password does not match, return an unauthorized error.
+	// --- 6. Compare Passwords ---
+	if password != correctPassword {
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(ResponsePayload{Message: "Invalid password.", Success: false})
 		return
 	}
 
-	// --- 6. Process the Content ---
-	// If the password is correct, call the function to process the content.
-	telegram_bot.Send(payload.Content)
-	discord_bot.Send(payload.Content)
+	// --- 7. Get the Image File from the Form ---
+	file, handler, err := r.FormFile("image")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ResponsePayload{Message: "Invalid image file in form.", Success: false})
+		return
+	}
+	defer file.Close()
 
-	// --- 7. Send Success Response ---
-	// Let the frontend know that everything was successful.
+	// --- 8. Read the file into a byte slice ---
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ResponsePayload{Message: "Could not read uploaded file.", Success: false})
+		return
+	}
+
+	// --- 9. Process the Image ---
+	processImage(fileBytes, handler.Filename, r.FormValue("message"))
+
+	// --- 10. Send Success Response ---
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ResponsePayload{Message: "Content received and processed successfully.", Success: true})
+	json.NewEncoder(w).Encode(ResponsePayload{Message: "Image received and processed successfully.", Success: true})
 }
-
