@@ -21,7 +21,12 @@ type ResponsePayload struct {
 func processImage(fileBytes []byte, filename string, message string) {
 	fmt.Printf("Processing image: %s, Size: %d bytes\n", filename, len(fileBytes))
 	os.WriteFile("/tmp/"+filename, fileBytes, 0644)
-	twitter_bot.PostTweet(message, fileBytes)
+	tweet_id, err := twitter_bot.PostTweet(message, nil)
+	if err != nil {
+		fmt.Println("Error posting tweet:", err)
+		return
+	}
+	fmt.Println(tweet_id)
 	telegram_bot.Send(message, "/tmp/"+filename)
 	discord_bot.Send(message, "/tmp/"+filename)
 	

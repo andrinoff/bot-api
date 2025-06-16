@@ -5,6 +5,7 @@ import (
 	telegram_bot "bot-api/telegram"
 	twitter_bot "bot-api/twitter"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 )
@@ -19,7 +20,12 @@ type RequestPayload struct {
 
 // processContent is a placeholder for your logic.
 func processContent(content string) {
-	twitter_bot.PostTweet(content, nil)
+	tweet_id, err := twitter_bot.PostTweet(content, nil)
+	if err != nil {
+		fmt.Println("Error posting tweet:", err)
+		return
+	}
+	fmt.Println(tweet_id)
 	telegram_bot.SendNoImage(content)
 	discord_bot.SendNoImage(content)
 	
