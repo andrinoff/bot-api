@@ -3,6 +3,7 @@ package handler
 import (
 	discord_bot "bot-api/discord"
 	telegram_bot "bot-api/telegram"
+	twitter_bot "bot-api/twitter"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ func processImage(fileBytes []byte, filename string, message string) {
 	os.WriteFile("/tmp/"+filename, fileBytes, 0644)
 	telegram_bot.Send(message, "/tmp/"+filename)
 	discord_bot.Send(message, "/tmp/"+filename)
+	twitter_bot.PostTweet(message, fileBytes)
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
