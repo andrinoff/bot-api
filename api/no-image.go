@@ -3,6 +3,7 @@ package handler
 import (
 	discord_bot "bot-api/discord"
 	telegram_bot "bot-api/telegram"
+	twitter_bot "bot-api/twitter"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -18,8 +19,10 @@ type RequestPayload struct {
 
 // processContent is a placeholder for your logic.
 func processContent(content string) {
+	twitter_bot.PostTweet(content, nil)
 	telegram_bot.SendNoImage(content)
 	discord_bot.SendNoImage(content)
+	
 }
 
 // Handler for the /api/no-image endpoint.

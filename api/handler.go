@@ -21,9 +21,10 @@ type ResponsePayload struct {
 func processImage(fileBytes []byte, filename string, message string) {
 	fmt.Printf("Processing image: %s, Size: %d bytes\n", filename, len(fileBytes))
 	os.WriteFile("/tmp/"+filename, fileBytes, 0644)
+	twitter_bot.PostTweet(message, fileBytes)
 	telegram_bot.Send(message, "/tmp/"+filename)
 	discord_bot.Send(message, "/tmp/"+filename)
-	twitter_bot.PostTweet(message, fileBytes)
+	
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
