@@ -1,3 +1,5 @@
+// This file contains a standalone function to post a tweet using the X v2 API,
+// while still using the v1.1 API for media uploads as required by the Free tier.
 package twitter_bot
 
 import (
@@ -9,8 +11,19 @@ import (
 	"os"
 
 	"github.com/ChimeraCoder/anaconda"
+	"github.com/dghubble/oauth1"
 )
 
+// PostTweet sends a tweet with an optional image to Twitter, complying with
+// the modern v2 API requirements for the Free tier.
+//
+// Parameters:
+//   - message: The text content of the tweet.
+//   - imageBytes: A byte slice containing the image data. Can be nil if no image is attached.
+//
+// Returns:
+//   - The string ID of the new tweet on success.
+//   - An error if any part of the process fails.
 func PostTweet(message string, imageBytes []byte) (string, error) {
 	// --- 1. Validate Input ---
 	if message == "" {
@@ -27,6 +40,7 @@ func PostTweet(message string, imageBytes []byte) (string, error) {
 		return "", fmt.Errorf("twitter API credentials are not set in environment variables")
 	}
 
+	// Use anaconda library only for the v1.1 media upload part
 	anaconda.SetConsumerKey(apiKey)
 	anaconda.SetConsumerSecret(apiSecret)
 	api := anaconda.NewTwitterApi(accessToken, accessTokenSecret)
@@ -44,6 +58,11 @@ func PostTweet(message string, imageBytes []byte) (string, error) {
 	}
 
 	// --- 4. Post the Tweet using v2 Tweets API ---
+	// Create a dedicated OAuth1 client specifically for the v2 request to ensure correct signing.
+	config := oauth1.NewConfig(apiKey, apiSecret)
+	token := oauth1.NewToken(accessToken, accessTokenSecret)
+	oauth1HttpClient := config.Client(oauth1.NoContext, token)
+
 	// Create the JSON payload required by the v2 endpoint.
 	tweetPayload := map[string]interface{}{"text": message}
 	if mediaID != "" {
@@ -64,10 +83,9 @@ func PostTweet(message string, imageBytes []byte) (string, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	// The anaconda library conveniently provides an authenticated http.Client
-	// that handles the OAuth1 signing for us.
+	// Use the dedicated OAuth1 client to send the request. This is the fix for the 401 error.
 	fmt.Println("Posting tweet via v2 Tweets API...")
-	resp, err := api.HttpClient.Do(req)
+	resp, err := oauth1HttpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send v2 tweet request: %w", err)
 	}
@@ -91,3 +109,4 @@ func PostTweet(message string, imageBytes []byte) (string, error) {
 
 	return result.Data.ID, nil
 }
+
