@@ -97,7 +97,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Print(r.FormValue("discord") == "true", r.FormValue("telegram") == "true", r.FormValue("twitter") == "true")
+	fmt.Print(r.FormValue("discord"), r.FormValue("telegram"), r.FormValue("twitter"))
 
 	// --- 9. Process the Image ---
 	processImage(fileBytes, handler.Filename, r.FormValue("message"), r.FormValue("discord") == "true", r.FormValue("telegram") == "true", r.FormValue("twitter") == "true")
