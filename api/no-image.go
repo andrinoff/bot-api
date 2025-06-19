@@ -14,21 +14,30 @@ import (
 type RequestPayload struct {
 	Password string `json:"password"`
 	Content  string `json:"content"`
+	Discord string `json:"discord"`
+	Telegram string `json:"telegram"`
+	Twitter string `json:"twitter"`
 }
 
 // ResponsePayload is defined in handler.go and reused here.
 
 // processContent is a placeholder for your logic.
-func processContent(content string) {
-	tweet_id, err := twitter_bot.PostTweet(content, nil)
-	if err != nil {
-		fmt.Println("Error posting tweet:", err)
-		return
-	}
-	fmt.Println(tweet_id)
-	telegram_bot.SendNoImage(content)
-	discord_bot.SendNoImage(content)
+func processContent(content string, discord string, telegram string, twitter string) {
+	if twitter == "true" {
+		tweet_id, err := twitter_bot.PostTweet(content, nil)
+		if err != nil {
+			fmt.Println("Error posting tweet:", err)
+			return
+		}
 	
+		fmt.Println(tweet_id)
+	}
+	if telegram == "true" {
+		telegram_bot.SendNoImage(content)
+	}
+	if discord == "true" {
+		discord_bot.SendNoImage(content)
+	}
 }
 
 // Handler for the /api/no-image endpoint.
@@ -68,7 +77,7 @@ func NoImageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Process the content
-	processContent(payload.Content)
+	processContent(payload.Content, payload.Discord, payload.Telegram, payload.Twitter)
 
 	// Send success response
 	w.WriteHeader(http.StatusOK)
