@@ -21,7 +21,7 @@ type ResponsePayload struct {
 func processImage(fileBytes []byte, filename string, message string) {
 	fmt.Printf("Processing image: %s, Size: %d bytes\n", filename, len(fileBytes))
 	os.WriteFile("/tmp/"+filename, fileBytes, 0644)
-	tweet_id, err := twitter_bot.PostTweet(message, nil)
+	tweet_id, err := twitter_bot.PostTweet(message, fileBytes)
 	if err != nil {
 		fmt.Println("Error posting tweet:", err)
 		return
@@ -72,6 +72,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ResponsePayload{Message: "Invalid password.", Success: false})
 		return
 	}
+
+	// --- 8 . Get what social media to post to
 
 	// --- 7. Get the Image File from the Form ---
 	file, handler, err := r.FormFile("image")
