@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 )
@@ -68,6 +69,7 @@ func NoImageHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ResponsePayload{Message: "Invalid request body.", Success: false})
+		log.Fatalf("Error decoding request body: %v", err)
 		return
 	}
 
