@@ -4,9 +4,12 @@ import (
 	discord_bot "bot-api/discord"
 	telegram_bot "bot-api/telegram"
 	twitter_bot "bot-api/twitter"
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
@@ -17,27 +20,56 @@ type ResponsePayload struct {
 	Success bool   `json:"success"`
 }
 
-
-func processImage(fileBytes []byte, filename string, message string, discord string, telegram string, twitter string) {
+func processImage(ctx context.Context, fileBytes []byte, filename string, message string, discord string, telegram string, twitter string) error {
 	fmt.Printf("Processing image: %s, Size: %d bytes\n", filename, len(fileBytes))
-	os.WriteFile("/tmp/"+filename, fileBytes, 0644)
+
 	if twitter == "true" {
-		tweet_id, err := twitter_bot.PostTweet(message, fileBytes)
+		tweet_id, err := twitter_bot.PostTweet(ctx, message, fileBytes)
 		if err != nil {
-			fmt.Println("Error posting tweet:", err)
-			return
+			return fmt.Errorf("error posting tweet: %w", err)
 		}
 		fmt.Println(tweet_id)
 	}
-	if telegram == "true"{
-		telegram_bot.Send(message, "/tmp/"+filename)
+
+	if telegram == "true" {
+		if err := telegram_bot.Send(ctx, message, bytes.NewReader(fileBytes)); err != nil {
+			return fmt.Errorf("error sending Telegram message: %w", err)
+		}
 	}
-	if discord == 	"true"{
-		discord_bot.Send(message, "/tmp/"+filename)
+
+	if discord == "true" {
+		if err := discord_bot.Send(ctx, message, bytes.NewReader(fileBytes)); err != nil {
+			return fmt.Errorf("error sending Discord message: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func errorMiddleware(next func(http.ResponseWriter, *http.Request) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		err := next(w, r)
+		if err != nil {
+			http.Error(w, "Internal Error", http.StatusInternalServerError)
+		}
+
+		if err != nil {
+			log.Printf("%s %s %s ERROR %s", r.Method, r.URL.Path, r.RemoteAddr, err)
+		} else {
+			log.Printf("%s %s %s", r.Method, r.URL.Path, r.RemoteAddr)
+		}
+
 	}
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
+	errorMiddleware(handler)(w, r)
+}
+
+func handler(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
 	// --- 1. Set CORS Headers ---
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -47,14 +79,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// --- 2. Handle Preflight OPTIONS Request ---
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
-		return
+		return nil
 	}
 
 	// --- 3. Handle HTTP Method ---
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ResponsePayload{Message: "Method Not Allowed. Please use POST.", Success: false})
-		return
+		return nil
 	}
 
 	// --- 4. Parse Multipart Form ---
@@ -62,9 +94,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// Larger files will be temporarily stored on disk.
 	err := r.ParseMultipartForm(10 << 20) // 10 MB
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ResponsePayload{Message: "Could not parse multipart form.", Success: false})
-		return
+		return err
 	}
 
 	// --- 5. Get Password from Form Value ---
@@ -73,9 +103,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	// --- 6. Compare Passwords ---
 	if password != correctPassword {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ResponsePayload{Message: "Invalid password.", Success: false})
-		return
+		return err
 	}
 
 	// --- 8 . Get what social media to post to
@@ -83,26 +111,25 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// --- 7. Get the Image File from the Form ---
 	file, handler, err := r.FormFile("image")
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ResponsePayload{Message: "Invalid image file in form.", Success: false})
-		return
+		return err
 	}
 	defer file.Close()
 
 	// --- 8. Read the file into a byte slice ---
 	fileBytes, err := io.ReadAll(file)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ResponsePayload{Message: "Could not read uploaded file.", Success: false})
-		return
+		return err
 	}
 
 	fmt.Print(r.FormValue("discord"), r.FormValue("telegram"), r.FormValue("twitter"))
 
 	// --- 9. Process the Image ---
-	processImage(fileBytes, handler.Filename, r.FormValue("message"), r.FormValue("discord"), r.FormValue("telegram"), r.FormValue("twitter"))
+	if err := processImage(ctx, fileBytes, handler.Filename, r.FormValue("message"), r.FormValue("discord"), r.FormValue("telegram"), r.FormValue("twitter")); err != nil {
+		return err
+	}
 
 	// --- 10. Send Success Response ---
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ResponsePayload{Message: "Image received and processed successfully.", Success: true})
+	return nil
 }

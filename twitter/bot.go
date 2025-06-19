@@ -4,6 +4,7 @@ package twitter_bot
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64" // <<< 1. IMPORT the base64 package
 	"encoding/json"
 	"fmt"
@@ -25,7 +26,7 @@ import (
 // Returns:
 //   - The string ID of the new tweet on success.
 //   - An error if any part of the process fails.
-func PostTweet(message string, imageBytes []byte) (string, error) {
+func PostTweet(ctx context.Context, message string, imageBytes []byte) (string, error) {
     // --- 1. Validate Input ---
     if message == "" {
         return "", fmt.Errorf("tweet message cannot be empty")
@@ -82,7 +83,7 @@ func PostTweet(message string, imageBytes []byte) (string, error) {
 
     // Manually create and send an authorized request to the v2 tweets endpoint.
     v2Endpoint := "https://api.twitter.com/2/tweets"
-    req, err := http.NewRequest("POST", v2Endpoint, bytes.NewBuffer(payloadBytes))
+    req, err := http.NewRequestWithContext(ctx, "POST", v2Endpoint, bytes.NewBuffer(payloadBytes))
     if err != nil {
         return "", fmt.Errorf("failed to create v2 request: %w", err)
     }

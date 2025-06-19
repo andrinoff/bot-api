@@ -4,6 +4,7 @@ import (
 	discord_bot "bot-api/discord"
 	telegram_bot "bot-api/telegram"
 	twitter_bot "bot-api/twitter"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,34 +15,36 @@ import (
 type RequestPayload struct {
 	Password string `json:"password"`
 	Content  string `json:"content"`
-	Discord string `json:"discord"`
+	Discord  string `json:"discord"`
 	Telegram string `json:"telegram"`
-	Twitter string `json:"twitter"`
+	Twitter  string `json:"twitter"`
 }
 
 // ResponsePayload is defined in handler.go and reused here.
 
 // processContent is a placeholder for your logic.
-func processContent(content string, discord string, telegram string, twitter string) {
+func processContent(ctx context.Context, content string, discord string, telegram string, twitter string) {
 	if twitter == "true" {
-		tweet_id, err := twitter_bot.PostTweet(content, nil)
+		tweet_id, err := twitter_bot.PostTweet(ctx, content, nil)
 		if err != nil {
 			fmt.Println("Error posting tweet:", err)
 			return
 		}
-	
+
 		fmt.Println(tweet_id)
 	}
 	if telegram == "true" {
-		telegram_bot.SendNoImage(content)
+		telegram_bot.SendNoImage(ctx, content)
 	}
 	if discord == "true" {
-		discord_bot.SendNoImage(content)
+		discord_bot.SendNoImage(ctx, content)
 	}
 }
 
 // Handler for the /api/no-image endpoint.
 func NoImageHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Set CORS and Content-Type headers
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -79,7 +82,7 @@ func NoImageHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Print(payload.Twitter, payload.Telegram, payload.Discord)
 
 	// Process the content
-	processContent(payload.Content, payload.Discord, payload.Telegram, payload.Twitter)
+	processContent(ctx, payload.Content, payload.Discord, payload.Telegram, payload.Twitter)
 
 	// Send success response
 	w.WriteHeader(http.StatusOK)
