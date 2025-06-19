@@ -76,6 +76,8 @@ func NoImageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Print(payload.Twitter, payload.Telegram, payload.Discord)
+
 	// Process the content
 	processContent(payload.Content, payload.Discord, payload.Telegram, payload.Twitter)
 
