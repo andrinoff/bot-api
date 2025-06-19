@@ -18,10 +18,10 @@ type ResponsePayload struct {
 }
 
 
-func processImage(fileBytes []byte, filename string, message string, discord bool, telegram bool, twitter bool) {
+func processImage(fileBytes []byte, filename string, message string, discord string, telegram string, twitter string) {
 	fmt.Printf("Processing image: %s, Size: %d bytes\n", filename, len(fileBytes))
 	os.WriteFile("/tmp/"+filename, fileBytes, 0644)
-	if twitter {
+	if twitter == "true" {
 		tweet_id, err := twitter_bot.PostTweet(message, fileBytes)
 		if err != nil {
 			fmt.Println("Error posting tweet:", err)
@@ -29,10 +29,10 @@ func processImage(fileBytes []byte, filename string, message string, discord boo
 		}
 		fmt.Println(tweet_id)
 	}
-	if telegram {
+	if telegram == "true"{
 		telegram_bot.Send(message, "/tmp/"+filename)
 	}
-	if discord {
+	if discord == 	"true"{
 		discord_bot.Send(message, "/tmp/"+filename)
 	}
 }
@@ -100,7 +100,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Print(r.FormValue("discord"), r.FormValue("telegram"), r.FormValue("twitter"))
 
 	// --- 9. Process the Image ---
-	processImage(fileBytes, handler.Filename, r.FormValue("message"), r.FormValue("discord") == "true", r.FormValue("telegram") == "true", r.FormValue("twitter") == "true")
+	processImage(fileBytes, handler.Filename, r.FormValue("message"), r.FormValue("discord"), r.FormValue("telegram"), r.FormValue("twitter"))
 
 	// --- 10. Send Success Response ---
 	w.WriteHeader(http.StatusOK)
