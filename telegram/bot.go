@@ -72,7 +72,7 @@ func SendNoImage(ctx context.Context, message string) {
 		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    chat_id,
 			Text:      message,
-			ParseMode: "MarkdownV2",
+			ParseMode: "Markdown",
 		})
 		if err != nil {
 			fmt.Printf("error sending message: %s", err)
